@@ -23,7 +23,8 @@ An advanced, AI-powered web app for resume evaluation, ATS scoring, job matching
 
 ## 📸 Demo
 
-> _Add a GIF or screenshots here!_
+![Uploading image.png…]()
+
 
 ---
 
