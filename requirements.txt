@@ -1,0 +1,34 @@
+# Core web framework
+streamlit==1.28.1
+
+# PDF processing - using more compatible versions
+PyMuPDF==1.23.7
+pdfplumber==0.10.3
+
+# Natural Language Processing
+spacy==3.7.2
+# Note: spaCy model will be downloaded separately
+
+# Machine Learning
+scikit-learn==1.3.2
+xgboost==2.0.1
+sentence-transformers==2.2.2
+
+# Text processing and analysis
+textstat==0.7.3
+nltk==3.8.1
+
+# Data manipulation
+pandas==2.1.3
+numpy==1.25.2
+
+# Optional: OpenAI API for advanced suggestions
+openai==1.3.7
+
+# Utilities
+python-dotenv==1.0.0
+Pillow==10.1.0
+
+# Alternative PDF processing (if PyMuPDF fails)
+# pdf2image==1.16.3
+# pytesseract==0.3.10 
