@@ -27,6 +27,15 @@ import openai
 import plotly.graph_objects as go
 import plotly.express as px
 
+# Ensure spaCy model is installed at runtime
+import spacy
+import subprocess
+import sys
+try:
+    spacy.load("en_core_web_sm")
+except OSError:
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+
 # Import our custom modules
 from resume_parser import ResumeParser
 from ats_checker import ATSChecker
