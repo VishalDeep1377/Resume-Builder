@@ -29,12 +29,11 @@ import plotly.express as px
 
 # Ensure spaCy model is installed at runtime
 import spacy
-import subprocess
-import sys
 try:
-    spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 except OSError:
-    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    import en_core_web_sm
+    nlp = en_core_web_sm.load()
 
 # Import our custom modules
 from resume_parser import ResumeParser
