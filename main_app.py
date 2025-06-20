@@ -107,6 +107,9 @@ st.markdown('''
 </style>
 ''', unsafe_allow_html=True)
 
+os.environ["HOME"] = "."
+os.environ["STREAMLIT_HOME"] = "."
+
 class ResumeEvaluatorApp:
     """
     Main application class for the AI Resume Evaluator.
