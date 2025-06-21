@@ -38,6 +38,7 @@ An advanced, AI-powered web app for resume evaluation, ATS scoring, job matching
 - [Troubleshooting & FAQ](#-troubleshooting--faq)
 - [Contributing](#-contributing)
 - [License](#-license)
+- [Deployment](#-deployment)
 
 ---
 
@@ -61,6 +62,18 @@ python -m spacy download en_core_web_sm
 streamlit run main_app.py
 ```
 Visit [http://localhost:8501](http://localhost:8501) in your browser.
+
+---
+
+## 🚀 Deployment
+
+This app is ready to be deployed on [Streamlit Community Cloud](https://streamlit.io/cloud).
+
+1. **Push to GitHub**: Make sure your code is pushed to a public GitHub repository.
+2. **Sign up for Streamlit Community Cloud**: If you haven't already, sign up for a free account.
+3. **Deploy**: Click "New app" from your workspace, connect your GitHub account, and select the repository and `main_app.py` file.
+
+That's it! Your app will be live in a few minutes.
 
 ---
 
@@ -135,9 +148,8 @@ Resume-Builder/
 ├── data/
 │   └── sample_resumes/   # Example resumes
 ├── requirements.txt      # Dependencies
-├── setup.py              # Setup script
+├── Procfile              # For deployment platforms
 ├── README.md             # This file
-└── QUICK_START.md        # Quick start guide
 ```
 
 ---
@@ -147,6 +159,8 @@ Resume-Builder/
 - **Change ATS rules**: Edit `ats_checker.py`
 - **Tweak UI/UX**: Edit `main_app.py`
 - **Add features**: Use `utils.py` for helpers
+
+For more, see this README.
 
 ---
 
@@ -163,7 +177,7 @@ Resume-Builder/
 - **OpenAI errors?**  
   Check your API key and internet connection
 
-For more, see [QUICK_START.md](QUICK_START.md)
+For more, see this README.
 
 ---
 
@@ -175,8 +189,8 @@ Pull requests, issues, and feature suggestions are welcome! Please open an issue
 
 ## 📄 License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License.
 
 ---
 
-**Built with ❤️ for job seekers, recruiters, and developers.** 
+**Built for job seekers, recruiters, and developers.** 

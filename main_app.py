@@ -53,7 +53,6 @@ logger = logging.getLogger(__name__)
 # Page configuration
 st.set_page_config(
     page_title="AI Resume Evaluator",
-    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -61,49 +60,123 @@ st.set_page_config(
 # Add mobile-friendly CSS at the top (after st.set_page_config)
 st.markdown('''
 <style>
-    html, body, [class*="css"]  {
-        font-size: 18px !important;
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+    :root {
+        --primary-color: #4A90E2;
+        --primary-hover-color: #357ABD;
+        --background-color: #0F172A;
+        --secondary-background-color: #1E293B;
+        --text-color: #E2E8F0;
+        --header-color: #FFFFFF;
+        --border-color: #334155;
     }
+
+    html, body, [class*="st-"], [class*="css"] {
+        font-family: 'Poppins', sans-serif;
+        color: var(--text-color);
+    }
+
+    .stApp {
+        background-color: var(--background-color);
+    }
+
+    .main-header {
+        color: var(--header-color);
+        text-align: center;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: var(--secondary-background-color);
+        border-right: 1px solid var(--border-color);
+    }
+
     .stButton>button {
-        width: 100% !important;
-        min-height: 48px !important;
-        font-size: 1.1rem !important;
-        border-radius: 8px !important;
-        margin-bottom: 0.5rem !important;
+        color: var(--header-color);
+        background: linear-gradient(90deg, var(--primary-color), #3E7AC7);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
-    .stTextInput>div>input, .stTextArea>div>textarea {
-        font-size: 1.1rem !important;
-        min-height: 44px !important;
+
+    .stButton>button:hover {
+        background: linear-gradient(90deg, var(--primary-hover-color), #356CB0);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        transform: translateY(-2px);
     }
+
     .stDownloadButton>button {
-        width: 100% !important;
-        min-height: 48px !important;
-        font-size: 1.1rem !important;
-        border-radius: 8px !important;
-        margin-bottom: 0.5rem !important;
+        color: var(--primary-color);
+        background-color: transparent;
+        border: 1px solid var(--primary-color);
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
+
+    .stDownloadButton>button:hover {
+        color: var(--header-color);
+        background-color: var(--primary-color);
+    }
+
+    .stTextInput>div>input, .stTextArea>div>textarea {
+        background-color: var(--secondary-background-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
     .stTabs [data-baseweb="tab-list"] button {
-        font-size: 1.1rem !important;
-        min-width: 90px !important;
-        padding: 0.5rem 0.7rem !important;
+        background-color: transparent;
+        color: var(--text-color);
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
     }
-    @media (max-width: 600px) {
-        html, body, [class*="css"]  {
-            font-size: 16px !important;
-        }
-        .main-header {
-            font-size: 2rem !important;
-        }
-        .stTabs [data-baseweb="tab-list"] button {
-            font-size: 1rem !important;
-            min-width: 60px !important;
-            padding: 0.3rem 0.4rem !important;
-        }
-        .stButton>button, .stDownloadButton>button {
-            min-height: 44px !important;
-            font-size: 1rem !important;
-        }
+
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        color: var(--primary-color);
+        border-bottom: 2px solid var(--primary-color);
     }
+
+    [data-testid="stMetric"] {
+        background-color: var(--secondary-background-color);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    [data-testid="stExpander"] {
+        background-color: var(--secondary-background-color);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    [data-testid="stExpander"] summary {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .score-card {
+        background-color: var(--secondary-background-color);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        border-left: 5px solid var(--primary-color);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .score-card h3 {
+        color: var(--header-color);
+        margin-bottom: 10px;
+    }
+    
 </style>
 ''', unsafe_allow_html=True)
 
@@ -153,25 +226,25 @@ class ResumeEvaluatorApp:
                 model_path = "models/resume_model.pkl"
                 if os.path.exists(model_path):
                     self.scoring_model.load_model(model_path)
-                    st.success("✅ Pre-trained model loaded successfully!")
+                    st.success("Pre-trained model loaded successfully!")
                 else:
                     with st.spinner("Training resume scoring model..."):
                         self.scoring_model.train_model()
                         # Create models directory if it doesn't exist
                         os.makedirs("models", exist_ok=True)
                         self.scoring_model.save_model(model_path)
-                    st.success("✅ Model trained and saved successfully!")
+                    st.success("Model trained and saved successfully!")
                 
             return True
             
         except Exception as e:
-            st.error(f"❌ Error initializing models: {str(e)}")
+            st.error(f"Error initializing models: {str(e)}")
             st.error("Please check that all required packages are installed.")
             return False
     
     def render_header(self):
         """Render the application header"""
-        st.markdown('<h1 class="main-header">🤖 AI Resume Evaluator</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="main-header">AI Resume Evaluator</h1>', unsafe_allow_html=True)
         st.markdown("""
         <div style="text-align: center; margin-bottom: 2rem;">
             <p style="font-size: 1.2rem; color: #666;">
@@ -183,7 +256,7 @@ class ResumeEvaluatorApp:
     def render_sidebar(self):
         """Render the sidebar with information and instructions"""
         with st.sidebar:
-            st.header("📋 Quick Start")
+            st.header("Quick Start")
             st.markdown("""
 1. **Upload** your PDF resume
 2. **Paste Job Description**
@@ -193,19 +266,19 @@ class ResumeEvaluatorApp:
 **PDF only** · **Max 10MB**
 """)
             st.markdown("---")
-            st.header("✨ Why You'll Love This App")
+            st.header("Features")
             st.markdown("""
-- 🤖 **AI Resume Check**: ATS, job match, quality score
-- 🧠 **Section Feedback**: Smart tips for every part
-- 🎯 **Job Match**: See missing keywords instantly
-- ✍️ **AI Rewrite**: Improve any section with GPT
-- ✉️ **Cover Letter**: 1-click, job-tailored letter
-- 🔗 **LinkedIn Check**: Compare resume & profile
-- 📄 **Download Improved Resume**
-- 📱 **Mobile Friendly**
+- **AI Resume Check**: ATS, job match, quality score
+- **Section Feedback**: Smart tips for every part
+- **Job Match**: See missing keywords instantly
+- **AI Rewrite**: Improve any section with GPT
+- **Cover Letter**: 1-click, job-tailored letter
+- **LinkedIn Check**: Compare resume & profile
+- **Download Improved Resume**
+- **Mobile Friendly**
 """)
             st.markdown("---")
-            st.header("💡 AI Features Setup")
+            st.header("AI Features Setup")
             st.markdown("""
 To use AI rewriting, cover letter, or chatbot features:
 
@@ -220,10 +293,10 @@ To use AI rewriting, cover letter, or chatbot features:
 5. **Paste it in the sidebar field below**
 6. *(If you run out of credits, add a payment method in OpenAI billing)*
 
-:bulb: *Your key is only used on your device and never stored.*
+*Your key is only used on your device and never stored.*
 """)
             
-            st.header("🔑 OpenAI API Key (for AI Rewrite)")
+            st.header("OpenAI API Key (for AI Rewrite)")
             openai_api_key = st.text_input(
                 "Enter your OpenAI API key",
                 type="password",
@@ -233,7 +306,7 @@ To use AI rewriting, cover letter, or chatbot features:
     
     def upload_resume(self) -> Optional[str]:
         """Handle resume file upload"""
-        st.header("📄 Upload Your Resume")
+        st.header("Upload Your Resume")
         
         uploaded_file = st.file_uploader(
             "Choose a PDF file",
@@ -256,16 +329,16 @@ To use AI rewriting, cover letter, or chatbot features:
                     temp_path = tmp_file.name
                 # Display file info
                 file_size = uploaded_file.size / (1024 * 1024)  # MB
-                st.success(f"✅ File uploaded successfully!")
-                st.info(f"📁 File: {uploaded_file.name}")
-                st.info(f"📏 Size: {file_size:.2f} MB")
+                st.success("File uploaded successfully!")
+                st.info(f"File: {uploaded_file.name}")
+                st.info(f"Size: {file_size:.2f} MB")
                 return temp_path
         
         return None
     
     def input_job_descriptions(self) -> str:
         """Allow user to input or upload a single job description"""
-        st.header("💼 Job Description")
+        st.header("Job Description")
         jd_text = ""
         with st.expander("Job Description"):
             jd_text = st.text_area(
@@ -308,7 +381,7 @@ To use AI rewriting, cover letter, or chatbot features:
             features = self.scoring_model.extract_features(parsed_resume)
             scoring_result = self.scoring_model.predict_score(features)
             progress_bar.progress(100)
-            status_text.text("✅ Analysis complete!")
+            status_text.text("Analysis complete!")
             st.session_state.analysis_results = {
                 'ats_report': ats_report,
                 'jd_report': jd_report,
@@ -321,9 +394,9 @@ To use AI rewriting, cover letter, or chatbot features:
                 os.unlink(pdf_path)
             except:
                 pass
-            st.success("🎉 Resume analysis completed successfully!")
+            st.success("Resume analysis completed successfully!")
         except Exception as e:
-            st.error(f"❌ Error during analysis: {str(e)}")
+            st.error(f"Error during analysis: {str(e)}")
             logger.error(f"Analysis error: {str(e)}")
 
     def display_results(self):
@@ -336,7 +409,7 @@ To use AI rewriting, cover letter, or chatbot features:
             results['jd_report'],
             results['scoring_result']
         )
-        st.header("📊 Overall Assessment")
+        st.header("Overall Assessment")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric(
@@ -370,7 +443,7 @@ To use AI rewriting, cover letter, or chatbot features:
                 delta_color="normal"
             )
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-            "📄 ATS", "🎯 Match", "⭐ Quality", "📝 Content", "💡 Tips", "🔗 LinkedIn", "✉️ Cover", "🤖 Assistant"
+            "ATS", "Match", "Quality", "Content", "Tips", "LinkedIn", "Cover", "Assistant"
         ])
         with tab1:
             self.display_ats_analysis(results['ats_report'])
@@ -409,9 +482,7 @@ To use AI rewriting, cover letter, or chatbot features:
         st.subheader("Detailed Checks")
         
         for check in ats_report.checks:
-            status_emoji = "✅" if check.status.value == "PASS" else "❌" if check.status.value == "FAIL" else "⚠️"
-            
-            with st.expander(f"{status_emoji} {check.name} - {check.score:.1f}/100"):
+            with st.expander(f"{check.name} - {check.score:.1f}/100"):
                 st.write(f"**Status:** {check.status.value}")
                 st.write(f"**Description:** {check.description}")
                 
@@ -516,7 +587,7 @@ To use AI rewriting, cover letter, or chatbot features:
                     elif key == 'education':
                         st.info("Education section found. Make sure to include your most recent degree.")
             else:
-                st.error(f"❌ {label} section not found! Add this section for a stronger resume.")
+                st.error(f"{label} section not found! Add this section for a stronger resume.")
                 st.info(section_tips[key])
 
         # Show other sections if present
@@ -548,18 +619,18 @@ To use AI rewriting, cover letter, or chatbot features:
         
         # Priority actions
         if summary['priority_actions']:
-            st.write("**🚀 Priority Actions:**")
+            st.write("**Priority Actions:**")
             for action in summary['priority_actions']:
                 st.write(f"• {action}")
         
         # All recommendations
         if summary['recommendations']:
-            st.write("**📋 All Recommendations:**")
+            st.write("**All Recommendations:**")
             for rec in summary['recommendations']:
                 st.write(f"• {rec}")
         
         # Download report
-        st.subheader("📥 Download Report")
+        st.subheader("Download Report")
         
         # Create a simple text report
         report_text = f"""
@@ -578,27 +649,27 @@ RECOMMENDATIONS
         """
         
         st.download_button(
-            label="📄 Download Report",
+            label="Download Report",
             data=report_text,
             file_name="resume_evaluation_report.txt",
             mime="text/plain"
         )
         
         # Generate improved resume DOCX
-        st.subheader("📄 Download Improved Resume (DOCX)")
+        st.subheader("Download Improved Resume (DOCX)")
         if st.button("Generate Improved Resume (DOCX)", type="secondary"):
             with st.spinner("Generating improved resume..."):
                 try:
                     improved_docx = self.generate_improved_resume_docx(st.session_state.parsed_resume, st.session_state.analysis_results['job_description'])
                     st.download_button(
-                        label="📄 Download Improved Resume (DOCX)",
+                        label="Download Improved Resume (DOCX)",
                         data=improved_docx,
                         file_name="improved_resume.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     )
-                    st.success("✅ Improved resume generated successfully!")
+                    st.success("Improved resume generated successfully!")
                 except Exception as e:
-                    st.error(f"❌ Error generating improved resume: {str(e)}")
+                    st.error(f"Error generating improved resume: {str(e)}")
     
     def generate_improved_resume_docx(self, parsed_resume, job_description):
         from docx import Document
@@ -664,13 +735,13 @@ RECOMMENDATIONS
     
     def input_linkedin_profile(self):
         """Let user upload LinkedIn PDF or paste profile text"""
-        st.header("🔗 LinkedIn Profile Analyzer (Beta)")
+        st.header("LinkedIn Profile Analyzer (Beta)")
         st.markdown("""
 **How to use:**
 - Export your LinkedIn profile as a PDF (Profile > More > Save to PDF) and upload it below, **or**
 - Copy and paste your profile text from LinkedIn into the text area.
 
-:warning: **Note:** Direct LinkedIn URLs are not supported. Please use PDF or text only.
+**Note:** Direct LinkedIn URLs are not supported. Please use PDF or text only.
 """)
         linkedin_text = ""
         uploaded_file = st.file_uploader("Upload your LinkedIn PDF (exported from LinkedIn)", type=["pdf"], key="linkedin_pdf")
@@ -728,7 +799,7 @@ RECOMMENDATIONS
     def display_linkedin_comparison(self, comparison):
         st.subheader("LinkedIn vs Resume Consistency")
         st.metric("Consistency Score", f"{comparison['consistency_score']*100:.1f}%")
-        st.markdown(f"**Summary Match:** {'✅' if comparison['summary_match'] else '❌'}")
+        st.markdown(f"**Summary Match:** {'Yes' if comparison['summary_match'] else 'No'}")
         st.markdown(f"**Skills in LinkedIn but not Resume:** {', '.join(comparison['missing_in_resume']) if comparison['missing_in_resume'] else 'None!'}")
         st.markdown(f"**Skills in Resume but not LinkedIn:** {', '.join(comparison['missing_in_linkedin']) if comparison['missing_in_linkedin'] else 'None!'}")
         st.markdown(f"**Position Mismatches:** {', '.join(comparison['position_mismatches']) if comparison['position_mismatches'] else 'None!'}")
@@ -788,7 +859,7 @@ RECOMMENDATIONS
         st.text(jd_report.detailed_analysis)
 
     def display_cover_letter(self, parsed_resume, job_description):
-        st.subheader("✉️ Cover Letter Generator")
+        st.subheader("Cover Letter Generator")
         openai_api_key = st.session_state.get('openai_api_key', None)
         # Extract info for prompt
         name = parsed_resume.get('contact_info', {}).name or "[Your Name]"
@@ -846,7 +917,7 @@ Sincerely,
 """
         st.text_area("Generated Cover Letter", cover_letter, height=300)
         st.download_button(
-            label="📄 Download Cover Letter",
+            label="Download Cover Letter",
             data=cover_letter,
             file_name="cover_letter.txt",
             mime="text/plain"
@@ -871,7 +942,7 @@ Sincerely,
         job_description = self.input_job_descriptions()
 
         # ATS-Friendly Resume Templates Section
-        st.header("📄 Download ATS-Friendly Resume Templates")
+        st.header("Download ATS-Friendly Resume Templates")
         st.markdown("""
         Choose from professionally designed, ATS-safe resume templates. These templates use standard fonts, clear section headings, and simple layouts to maximize compatibility with Applicant Tracking Systems (ATS).
         """)
@@ -879,7 +950,7 @@ Sincerely,
         with tab1:
             with open("data/sample_resumes/ATS_Minimal_Template.docx", "rb") as f:
                 st.download_button(
-                    label="📄 Download DOCX",
+                    label="Download DOCX",
                     data=f.read(),
                     file_name="ATS_Minimal_Template.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -888,7 +959,7 @@ Sincerely,
         with tab2:
             with open("data/sample_resumes/ATS_Modern_Template.docx", "rb") as f:
                 st.download_button(
-                    label="📄 Download DOCX",
+                    label="Download DOCX",
                     data=f.read(),
                     file_name="ATS_Modern_Template.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -897,7 +968,7 @@ Sincerely,
         with tab3:
             with open("data/sample_resumes/ATS_Student_Template.docx", "rb") as f:
                 st.download_button(
-                    label="📄 Download DOCX",
+                    label="Download DOCX",
                     data=f.read(),
                     file_name="ATS_Student_Template.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -909,20 +980,20 @@ Sincerely,
         if not st.session_state.analysis_complete:
             # Analysis button
             if pdf_path and job_description:
-                st.header("🔍 Start Analysis")
+                st.header("Start Analysis")
                 
-                if st.button("🚀 Analyze Resume", type="primary", use_container_width=True):
+                if st.button("Analyze Resume", type="primary", use_container_width=True):
                     self.analyze_resume(pdf_path, job_description)
                     st.rerun()
             else:
-                st.info("👆 Please upload a resume and enter job description to begin analysis.")
+                st.info("Please upload a resume and enter a job description to begin the analysis.")
         
         else:
             # Display results
             self.display_results()
             
             # Reset button
-            if st.button("🔄 Start New Analysis", use_container_width=True):
+            if st.button("Start New Analysis", use_container_width=True):
                 st.session_state.analysis_complete = False
                 st.session_state.parsed_resume = None
                 st.session_state.analysis_results = None
