@@ -18,5 +18,6 @@ COPY . .
 # Expose the port Streamlit runs on
 EXPOSE 8501
 
-# Define the command to run the app. Streamlit Cloud will handle port and address binding.
-CMD ["streamlit", "run", "main_app.py"] 
+# Command to run the Streamlit application
+# Use environment variable for port to be compatible with cloud platforms
+CMD streamlit run main_app.py --server.port $PORT --server.enableCORS false --server.enableXsrfProtection false 
