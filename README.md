@@ -1,3 +1,11 @@
+---
+title: AI Resume Evaluator
+emoji: 📄
+colorFrom: blue
+colorTo: green
+sdk: docker
+---
+
 # 🚀 AI-Powered Resume Evaluator & Job Match Suite
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/) [![Streamlit](https://img.shields.io/badge/Streamlit-Enabled-ff4b4b?logo=streamlit)](https://streamlit.io/) [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
