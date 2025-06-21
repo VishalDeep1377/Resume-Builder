@@ -22,5 +22,5 @@ COPY . .
 EXPOSE 8501
 
 # Command to run the Streamlit application
-# Use environment variable for port to be compatible with cloud platforms
-CMD ["/bin/sh", "-c", "echo '--- ENVIRONMENT VARIABLES ---' && printenv && echo '--- STARTING APP ---' && streamlit run main_app.py --server.port $PORT --server.enableCORS false --server.enableXsrfProtection false"] 
+# Use environment variable for port and add headless flags for deployment
+CMD streamlit run main_app.py --server.port $PORT --server.headless true --browser.gatherUsageStats false 
