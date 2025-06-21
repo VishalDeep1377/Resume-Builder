@@ -347,51 +347,34 @@ class ResumeScoringModel:
     
     def train_model(self, data: Optional[pd.DataFrame] = None) -> None:
         """
-        Train the resume scoring model.
-        
-        Args:
-            data (Optional[pd.DataFrame]): Training data, generates if not provided
+        Train a simple, fast model for deployment.
+        This function now exclusively uses Linear Regression for speed.
         """
         if data is None:
             data = self.generate_training_data()
         
-        # Prepare features and target
         X = data[self.feature_names]
         y = data['quality_score']
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # Split data for training and validation
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
         
-        # Scale features
-        X_train_scaled = self.scaler.fit_transform(X_train)
+        # Fit scaler on training data and transform both sets
+        self.scaler.fit(X_train)
+        X_train_scaled = self.scaler.transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
         
-        # Train multiple models and choose the best one
-        models = {
-            'RandomForest': RandomForestRegressor(n_estimators=100, random_state=42),
-            'LinearRegression': LinearRegression()
-        }
+        # Train a fast Linear Regression model
+        logger.info("Training a simple and fast Linear Regression model for deployment.")
+        self.model = LinearRegression()
+        self.model.fit(X_train_scaled, y_train)
         
-        # Add LightGBM if available
-        if LGB_AVAILABLE:
-            models['LightGBM'] = lgb.LGBMRegressor(n_estimators=100, random_state=42)
-        
-        best_score = -1
-        best_model = None
-        
-        for name, model in models.items():
-            model.fit(X_train_scaled, y_train)
-            y_pred = model.predict(X_test_scaled)
-            score = r2_score(y_test, y_pred)
-            
-            logger.info(f"{name} R² Score: {score:.3f}")
-            
-            if score > best_score:
-                best_score = score
-                best_model = model
-        
-        self.model = best_model
-        logger.info(f"Selected {type(best_model).__name__} as best model with R² score: {best_score:.3f}")
+        # Evaluate for logging purposes
+        y_pred = self.model.predict(X_test_scaled)
+        r2 = r2_score(y_test, y_pred)
+        logger.info(f"Model training complete. R2 score: {r2:.3f}")
     
     def predict_score(self, features: ResumeFeatures) -> ScoringResult:
         """
