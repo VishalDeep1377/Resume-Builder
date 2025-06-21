@@ -1,27 +1,23 @@
-# Use Python 3.11 slim as the base image
+# Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Set the working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
-COPY packages.txt ./
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    $(cat packages.txt) \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies from packages.txt
+# This is useful for libraries that need to be compiled
+COPY packages.txt .
+RUN xargs -a packages.txt apt-get install -y --no-install-recommends
 
-# Copy the rest of the code
-COPY . .
-
-# Install Python dependencies
+# Copy the requirements file and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port Streamlit uses
+# Copy the rest of the application code
+COPY . .
+
+# Expose the port Streamlit runs on
 EXPOSE 8501
 
-# Set environment variables for Streamlit
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_HEADLESS=true
-
-# Run the Streamlit app
+# Define the command to run the app
 CMD ["streamlit", "run", "main_app.py", "--server.port=8501", "--server.address=0.0.0.0"] 
