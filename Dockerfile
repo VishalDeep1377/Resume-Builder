@@ -5,9 +5,8 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies from packages.txt
-# This is useful for libraries that need to be compiled
 COPY packages.txt .
-RUN xargs -a packages.txt apt-get install -y --no-install-recommends
+RUN apt-get update && apt-get install -y --no-install-recommends $(cat packages.txt) && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file and install Python dependencies
 COPY requirements.txt .
@@ -19,5 +18,5 @@ COPY . .
 # Expose the port Streamlit runs on
 EXPOSE 8501
 
-# Define the command to run the app
-CMD ["streamlit", "run", "main_app.py", "--server.port=8501", "--server.address=0.0.0.0"] 
+# Define the command to run the app. Streamlit Cloud will handle port and address binding.
+CMD ["streamlit", "run", "main_app.py"] 
