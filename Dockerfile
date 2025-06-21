@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy the rest of the code
 COPY . .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies and then clean up the cache
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache/pip
 
 # Expose the port Streamlit uses
 EXPOSE 8501
