@@ -3,7 +3,7 @@ PDF Resume Parser
 =================
 
 This module handles the extraction and parsing of resume content from PDF files.
-It uses pdfplumber for PDF processing and spaCy for natural language processing
+It uses pdfplumber for PDF processing and NLTK for natural language processing
 to identify key sections and extract structured information.
 
 Key Features:
@@ -18,7 +18,7 @@ Author: AI Resume Evaluator
 """
 
 import pdfplumber
-import spacy
+import nltk
 import re
 import logging
 from typing import Dict, List, Tuple, Optional
@@ -50,21 +50,19 @@ class ResumeParser:
     """
     Main class for parsing PDF resumes and extracting structured information.
     
-    This class uses pdfplumber to extract text from PDF files and spaCy for
+    This class uses pdfplumber to extract text from PDF files and NLTK for
     natural language processing to identify and categorize different sections
     of the resume.
     """
     
     def __init__(self):
-        """Initialize the parser with spaCy model"""
+        """Initialize the parser"""
         try:
-            # Load the English language model for spaCy
-            # This model helps us understand text structure and extract entities
-            self.nlp = spacy.load("en_core_web_sm")
-            logger.info("spaCy model loaded successfully")
-        except OSError:
-            logger.error("spaCy model not found. Please run: python -m spacy download en_core_web_sm")
-            raise
+            nltk.data.find('tokenizers/punkt')
+            nltk.data.find('corpora/stopwords')
+        except LookupError:
+            nltk.download('punkt')
+            nltk.download('stopwords')
         
         # Define common section headers that appear in resumes
         # These help us identify different parts of the resume
@@ -247,7 +245,7 @@ class ResumeParser:
     
     def extract_skills(self, text: str) -> List[str]:
         """
-        Extract skills from resume text using NLP.
+        Extract skills from resume text using NLTK and a predefined list.
         
         Args:
             text (str): Resume text content
@@ -255,49 +253,39 @@ class ResumeParser:
         Returns:
             List[str]: List of extracted skills
         """
-        # Process text with spaCy
-        doc = self.nlp(text)
-        
-        skills = []
-        
-        # Look for skills section specifically
-        sections = self.identify_sections(text)
-        skills_section = None
-        for section in sections:
-            if section.title == 'skills':
-                skills_section = section.content
-                break
-        
-        # If we found a skills section, focus on that
-        target_text = skills_section if skills_section else text
-        
-        # Extract noun phrases and technical terms
-        doc = self.nlp(target_text)
-        
-        # Look for technical terms, programming languages, tools
-        technical_terms = [
-            'python', 'java', 'javascript', 'html', 'css', 'sql', 'react', 'angular',
-            'node.js', 'django', 'flask', 'aws', 'azure', 'docker', 'kubernetes',
-            'machine learning', 'data analysis', 'project management', 'agile',
-            'scrum', 'git', 'github', 'jenkins', 'jira', 'confluence'
+        # A comprehensive list of potential technical skills
+        # This list can be expanded or loaded from a file
+        SKILLS_DB = [
+            'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'php', 'ruby', 'go', 'rust',
+            'swift', 'kotlin', 'scala', 'r', 'matlab', 'sql', 'nosql', 'html', 'css', 'react',
+            'angular', 'vue', 'django', 'flask', 'spring', 'express', 'laravel', 'rails',
+            'asp.net', 'node.js', 'jquery', 'bootstrap', 'mysql', 'postgresql', 'mongodb',
+            'redis', 'elasticsearch', 'oracle', 'sql server', 'sqlite', 'dynamodb', 'cassandra',
+            'aws', 'azure', 'gcp', 'google cloud', 'heroku', 'digitalocean', 'docker',
+            'kubernetes', 'git', 'github', 'jenkins', 'terraform', 'ansible', 'jira',
+            'confluence', 'linux', 'unix', 'windows', 'macos', 'bash', 'powershell', 'agile',
+            'scrum', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'keras',
+            'scikit-learn', 'pandas', 'numpy', 'matplotlib', 'seaborn', 'data analysis',
+            'data visualization', 'data mining', 'natural language processing', 'nlp',
+            'computer vision', 'rest', 'graphql', 'soap', 'api', 'microservices',
+            'cybersecurity', 'penetration testing', 'networking', 'tcp/ip', 'devops'
         ]
+
+        found_skills = set()
+        text_lower = text.lower()
         
-        # Extract skills using multiple methods
-        for token in doc:
-            # Look for technical terms
-            if token.text.lower() in technical_terms:
-                skills.append(token.text)
-            
-            # Look for noun phrases that might be skills
-            elif token.pos_ in ['NOUN', 'PROPN'] and len(token.text) > 2:
-                if not token.is_stop and not token.is_punct:
-                    skills.append(token.text)
+        # Tokenize the text to find individual words/phrases
+        tokens = nltk.word_tokenize(text_lower)
         
-        # Remove duplicates and clean up
-        skills = list(set([skill.strip() for skill in skills if skill.strip()]))
+        # Check for skills in the text
+        for skill in SKILLS_DB:
+            if skill.lower() in text_lower:
+                # Check for whole word match to avoid partial matches like 'r' in 'react'
+                if re.search(r'\b' + re.escape(skill.lower()) + r'\b', text_lower):
+                    found_skills.add(skill)
         
-        logger.info(f"Extracted {len(skills)} skills: {skills[:10]}...")  # Show first 10
-        return skills
+        logger.info(f"Found {len(found_skills)} skills")
+        return sorted(list(found_skills))
     
     def extract_experience(self, text: str) -> List[Dict]:
         """

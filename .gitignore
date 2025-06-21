@@ -1,0 +1,11 @@
+# Ignore Python cache files
+__pycache__/
+
+# Ignore local model files
+models/resume_model.pkl
+
+# Ignore virtual environment
+venv/
+
+# Ignore local user data
+user_data.db 

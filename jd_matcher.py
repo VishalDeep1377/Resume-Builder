@@ -23,7 +23,6 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -56,7 +55,6 @@ class KeywordMatch:
 class MatchingReport:
     """Data class for complete job description matching report"""
     tfidf_similarity: float
-    sentence_similarity: float
     overall_similarity: float
     keyword_matches: List[KeywordMatch]
     missing_keywords: List[str]
@@ -86,14 +84,6 @@ class JobDescriptionMatcher:
             min_df=1,
             max_df=0.95
         )
-        
-        # Initialize sentence transformer model
-        try:
-            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("Sentence transformer model loaded successfully")
-        except Exception as e:
-            logger.warning(f"Could not load sentence transformer: {e}")
-            self.sentence_model = None
         
         # Load stop words
         self.stop_words = set(stopwords.words('english'))
@@ -215,36 +205,6 @@ class JobDescriptionMatcher:
             
         except Exception as e:
             logger.error(f"Error calculating TF-IDF similarity: {e}")
-            return 0.0
-    
-    def calculate_sentence_similarity(self, resume_text: str, job_description: str) -> float:
-        """
-        Calculate similarity using sentence transformers.
-        
-        Args:
-            resume_text (str): Resume text content
-            job_description (str): Job description text
-            
-        Returns:
-            float: Similarity score (0-1)
-        """
-        if self.sentence_model is None:
-            logger.warning("Sentence transformer not available, returning 0")
-            return 0.0
-        
-        try:
-            # Encode texts
-            resume_embedding = self.sentence_model.encode([resume_text])
-            jd_embedding = self.sentence_model.encode([job_description])
-            
-            # Calculate cosine similarity
-            similarity = cosine_similarity(resume_embedding, jd_embedding)[0][0]
-            
-            logger.info(f"Sentence similarity: {similarity:.3f}")
-            return similarity
-            
-        except Exception as e:
-            logger.error(f"Error calculating sentence similarity: {e}")
             return 0.0
     
     def analyze_keyword_matches(self, resume_text: str, job_description: str) -> Tuple[List[KeywordMatch], List[str], List[str]]:
@@ -382,50 +342,63 @@ class JobDescriptionMatcher:
     
     def match_resume_to_job(self, resume_text: str, job_description: str) -> MatchingReport:
         """
-        Perform comprehensive matching between resume and job description.
+        Perform a full analysis of resume against job description.
         
         Args:
             resume_text (str): Resume text content
             job_description (str): Job description text
             
         Returns:
-            MatchingReport: Complete matching analysis
+            MatchingReport: Detailed matching report
         """
-        logger.info("Starting job description matching analysis")
+        if not resume_text or not job_description:
+            logger.warning("Resume text or job description is empty.")
+            # Return a default empty report
+            return MatchingReport(
+                tfidf_similarity=0.0,
+                overall_similarity=0.0,
+                keyword_matches=[],
+                missing_keywords=[],
+                matching_keywords=[],
+                total_keywords=0,
+                match_percentage=0.0,
+                suggestions=["Please provide both a resume and a job description."],
+                detailed_analysis="Analysis could not be performed due to missing content."
+            )
+
+        # Preprocess texts
+        processed_resume = self.preprocess_text(resume_text)
+        processed_jd = self.preprocess_text(job_description)
         
         # Calculate similarities
-        tfidf_similarity = self.calculate_tfidf_similarity(resume_text, job_description)
-        sentence_similarity = self.calculate_sentence_similarity(resume_text, job_description)
-        
-        # Calculate overall similarity (weighted average)
-        if self.sentence_model:
-            overall_similarity = (tfidf_similarity * 0.4) + (sentence_similarity * 0.6)
-        else:
-            overall_similarity = tfidf_similarity
+        tfidf_similarity = self.calculate_tfidf_similarity(processed_resume, processed_jd)
         
         # Analyze keyword matches
         keyword_matches, missing_keywords, matching_keywords = self.analyze_keyword_matches(
-            resume_text, job_description
+            processed_resume, processed_jd
         )
         
         # Calculate match percentage
-        total_keywords = len(keyword_matches)
-        match_percentage = (len(matching_keywords) / total_keywords * 100) if total_keywords > 0 else 0
-        
+        total_keywords = len(missing_keywords) + len(matching_keywords)
+        if total_keywords > 0:
+            match_percentage = (len(matching_keywords) / total_keywords) * 100
+        else:
+            match_percentage = 0.0
+            
+        # The main score should be the keyword match percentage
+        overall_similarity = match_percentage / 100.0
+
         # Generate suggestions
         suggestions = self.generate_suggestions(missing_keywords, match_percentage)
         
-        # Create detailed analysis
+        # Create detailed analysis report
         detailed_analysis = self._create_detailed_analysis(
-            tfidf_similarity, sentence_similarity, overall_similarity,
-            keyword_matches, missing_keywords, match_percentage
+            tfidf_similarity, overall_similarity, keyword_matches, 
+            missing_keywords, match_percentage
         )
-        
-        logger.info(f"Matching analysis completed. Overall similarity: {overall_similarity:.3f}")
         
         return MatchingReport(
             tfidf_similarity=tfidf_similarity,
-            sentence_similarity=sentence_similarity,
             overall_similarity=overall_similarity,
             keyword_matches=keyword_matches,
             missing_keywords=missing_keywords,
@@ -436,15 +409,14 @@ class JobDescriptionMatcher:
             detailed_analysis=detailed_analysis
         )
     
-    def _create_detailed_analysis(self, tfidf_similarity: float, sentence_similarity: float,
+    def _create_detailed_analysis(self, tfidf_similarity: float,
                                 overall_similarity: float, keyword_matches: List[KeywordMatch],
                                 missing_keywords: List[str], match_percentage: float) -> str:
         """
-        Create detailed analysis text for the matching report.
+        Create a detailed text analysis of the matching results.
         
         Args:
             tfidf_similarity (float): TF-IDF similarity score
-            sentence_similarity (float): Sentence similarity score
             overall_similarity (float): Overall similarity score
             keyword_matches (List[KeywordMatch]): Keyword matching results
             missing_keywords (List[str]): Missing keywords
@@ -454,29 +426,18 @@ class JobDescriptionMatcher:
             str: Detailed analysis text
         """
         analysis = f"""
-        **Similarity Analysis:**
-        - TF-IDF Similarity: {tfidf_similarity:.1%}
-        - Sentence Similarity: {sentence_similarity:.1%}
-        - Overall Similarity: {overall_similarity:.1%}
-        
-        **Keyword Analysis:**
-        - Total Keywords in Job Description: {len(keyword_matches)}
-        - Keywords Found in Resume: {len(keyword_matches) - len(missing_keywords)}
-        - Keywords Missing: {len(missing_keywords)}
-        - Match Percentage: {match_percentage:.1f}%
-        
-        **Missing High-Importance Keywords:**
-        """
-        
-        high_importance_missing = [
-            match.keyword for match in keyword_matches 
-            if not match.found_in_resume and match.importance == 'high'
-        ]
-        
-        if high_importance_missing:
-            analysis += f"- {', '.join(high_importance_missing[:10])}"
-        else:
-            analysis += "- None (excellent!)"
+Overall Match Score: {overall_similarity * 100:.1f}%
+
+Detailed Breakdown:
+- TF-IDF Similarity: {tfidf_similarity * 100:.1f}% (keyword-based match)
+- Keyword Match Percentage: {match_percentage:.1f}%
+
+The analysis shows a keyword similarity of {tfidf_similarity * 100:.1f}%. 
+This score reflects how well the specific terms in your resume align with the job description.
+Your resume includes {len(keyword_matches) - len(missing_keywords)} of the {len(keyword_matches)} important keywords found in the job description.
+"""
+        if missing_keywords:
+            analysis += f"\n\n**Missing High-Importance Keywords:**\n- {', '.join(missing_keywords[:10])}"
         
         return analysis
 

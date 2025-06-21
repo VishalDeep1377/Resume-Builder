@@ -27,14 +27,6 @@ import openai
 import plotly.graph_objects as go
 import plotly.express as px
 
-# Ensure spaCy model is installed at runtime
-import spacy
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    import en_core_web_sm
-    nlp = en_core_web_sm.load()
-
 # Import our custom modules
 from resume_parser import ResumeParser
 from ats_checker import ATSChecker
@@ -442,8 +434,8 @@ To use AI rewriting, cover letter, or chatbot features:
                 delta=None,
                 delta_color="normal"
             )
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-            "ATS", "Match", "Quality", "Content", "Tips", "LinkedIn", "Cover", "Assistant"
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+            "ATS", "Match", "Quality", "Content", "Tips", "Cover", "Assistant"
         ])
         with tab1:
             self.display_ats_analysis(results['ats_report'])
@@ -452,17 +444,12 @@ To use AI rewriting, cover letter, or chatbot features:
         with tab3:
             self.display_quality_score(results['scoring_result'])
         with tab4:
-            self.display_content_analysis(parsed_resume)
+            self.display_content_analysis(parsed_resume, results['scoring_result'])
         with tab5:
             self.display_recommendations(summary)
         with tab6:
-            linkedin_text = self.input_linkedin_profile()
-            if linkedin_text:
-                comparison = self.compare_linkedin_resume(parsed_resume, linkedin_text)
-                self.display_linkedin_comparison(comparison)
-        with tab7:
             self.display_cover_letter(parsed_resume, results['job_description'])
-        with tab8:
+        with tab7:
             resume_text = parsed_resume.get('raw_text', '') if parsed_resume else ''
             chat_with_resume_assistant(resume_text)
     
@@ -516,28 +503,17 @@ To use AI rewriting, cover letter, or chatbot features:
         # Feature breakdown
         st.subheader("Feature Breakdown")
         
+        # Create a more visual breakdown with progress bars
         for feature, score in scoring_result.feature_scores.items():
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.write(f"**{feature.replace('_', ' ').title()}:**")
-            with col2:
-                st.write(f"{score:.1f}/100")
-        
+            st.markdown(f"**{feature.replace('_', ' ').title()}**")
+            st.progress(int(score) / 100)
+
         # Detailed breakdown
         st.subheader("Detailed Analysis")
         for category, description in scoring_result.breakdown.items():
             st.write(f"**{category}:** {description}")
-        
-        # Feature importance
-        st.subheader("Feature Importance")
-        importance_df = pd.DataFrame({
-            'Feature': list(scoring_result.feature_importance.keys()),
-            'Importance': list(scoring_result.feature_importance.values())
-        }).sort_values('Importance', ascending=False)
-        
-        st.bar_chart(importance_df.set_index('Feature'))
     
-    def display_content_analysis(self, parsed_resume):
+    def display_content_analysis(self, parsed_resume, scoring_result):
         """Display content analysis with section-by-section feedback"""
         st.subheader("Content Analysis & Section Feedback")
 
@@ -612,6 +588,63 @@ To use AI rewriting, cover letter, or chatbot features:
             with col3:
                 st.metric("Skills Found", len(parsed_resume.get('skills', [])))
                 st.metric("Experience Entries", len(parsed_resume.get('experience', [])))
+        
+        # Feature importance
+        st.subheader("Feature Importance")
+        st.markdown("This chart shows which resume features had the biggest impact on your quality score.")
+        if scoring_result.feature_importance:
+            importance_df = pd.DataFrame({
+                'Feature': list(scoring_result.feature_importance.keys()),
+                'Importance': list(scoring_result.feature_importance.values())
+            }).sort_values('Importance', ascending=False)
+            
+            st.bar_chart(importance_df.set_index('Feature'))
+        else:
+            st.info("Feature importance data is not available.")
+    
+    def display_jd_matching(self, jd_report):
+        """Display job description matching analysis"""
+        st.subheader("Job Description Match Analysis")
+
+        st.markdown(f"""
+        <div class="score-card">
+            <h3>Overall Match Score: {jd_report.overall_similarity * 100:.1f}%</h3>
+            <p>This score reflects how well the keywords and phrases in your resume align with the job description.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.subheader("Keyword Breakdown")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Keywords in JD", jd_report.total_keywords)
+        with col2:
+            st.metric("Keywords Found", len(jd_report.matching_keywords))
+        with col3:
+            st.metric("Keywords Missing", len(jd_report.missing_keywords))
+
+        tab1, tab2 = st.tabs(["Missing Keywords", "Matching Keywords"])
+
+        with tab1:
+            if jd_report.missing_keywords:
+                st.error("Consider adding these keywords to your resume to improve your match score:")
+                st.text(", ".join(jd_report.missing_keywords))
+            else:
+                st.success("Excellent! No important keywords are missing from your resume.")
+
+        with tab2:
+            if jd_report.matching_keywords:
+                st.info("These keywords from the job description were found in your resume:")
+                st.text(", ".join(jd_report.matching_keywords))
+            else:
+                st.warning("No matching keywords were found.")
+
+        if jd_report.suggestions:
+            st.subheader("Suggestions for Improvement")
+            for suggestion in jd_report.suggestions:
+                st.write(f"👉 {suggestion}")
+
+        with st.expander("View Detailed Text Analysis"):
+            st.text(jd_report.detailed_analysis)
     
     def display_recommendations(self, summary):
         """Display recommendations and suggestions"""
@@ -803,60 +836,6 @@ RECOMMENDATIONS
         st.markdown(f"**Skills in LinkedIn but not Resume:** {', '.join(comparison['missing_in_resume']) if comparison['missing_in_resume'] else 'None!'}")
         st.markdown(f"**Skills in Resume but not LinkedIn:** {', '.join(comparison['missing_in_linkedin']) if comparison['missing_in_linkedin'] else 'None!'}")
         st.markdown(f"**Position Mismatches:** {', '.join(comparison['position_mismatches']) if comparison['position_mismatches'] else 'None!'}")
-
-    def display_jd_matching(self, jd_report):
-        """Display job description matching analysis for a single JD"""
-        st.subheader("Job Description Matching")
-        # Similarity scores
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(
-                "TF-IDF Similarity",
-                f"{jd_report.tfidf_similarity * 100:.1f}%"
-            )
-        with col2:
-            st.metric(
-                "Sentence Similarity",
-                f"{jd_report.sentence_similarity * 100:.1f}%"
-            )
-        # Overall similarity
-        score_color = get_score_color(jd_report.overall_similarity * 100)
-        st.markdown(f"""
-        <div class="score-card">
-            <h3>Overall Match: {jd_report.overall_similarity * 100:.1f}%</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        # Keyword analysis
-        st.subheader("Keyword Analysis")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Total Keywords", jd_report.total_keywords)
-            st.metric("Matching Keywords", len(jd_report.matching_keywords))
-        with col2:
-            st.metric("Missing Keywords", len(jd_report.missing_keywords))
-            st.metric("Match Percentage", f"{jd_report.match_percentage:.1f}%")
-        # Missing keywords
-        if jd_report.missing_keywords:
-            st.subheader("Missing Keywords")
-            missing_df = pd.DataFrame({
-                'Missing Keywords': jd_report.missing_keywords[:20]  # Show top 20
-            })
-            st.dataframe(missing_df, use_container_width=True)
-        # Matching keywords
-        if jd_report.matching_keywords:
-            st.subheader("Matching Keywords")
-            matching_df = pd.DataFrame({
-                'Matching Keywords': jd_report.matching_keywords[:20]  # Show top 20
-            })
-            st.dataframe(matching_df, use_container_width=True)
-        # Suggestions
-        if jd_report.suggestions:
-            st.subheader("Suggestions")
-            for suggestion in jd_report.suggestions:
-                st.info(suggestion)
-        # Detailed analysis
-        st.subheader("Detailed Analysis")
-        st.text(jd_report.detailed_analysis)
 
     def display_cover_letter(self, parsed_resume, job_description):
         st.subheader("Cover Letter Generator")

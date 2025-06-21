@@ -30,12 +30,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 import textstat
 import re
 
-# Try to import lightgbm, but make it optional
+# Use lightgbm as the primary model
 try:
     import lightgbm as lgb
-    LIGHTGBM_AVAILABLE = True
+    LGB_AVAILABLE = True
 except ImportError:
-    LIGHTGBM_AVAILABLE = False
+    LGB_AVAILABLE = False
     logging.warning("LightGBM not available. Using alternative models.")
 
 # Configure logging
@@ -359,35 +359,39 @@ class ResumeScoringModel:
         X = data[self.feature_names]
         y = data['quality_score']
         
-        logger.info(f"Training data shape: {X.shape}")
-        
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
         # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
         
-        # Use LightGBM if available, otherwise fall back to RandomForest
-        if LIGHTGBM_AVAILABLE:
-            logger.info("Training with LightGBM model")
-            self.model = lgb.LGBMRegressor(
-                n_estimators=100,
-                learning_rate=0.1,
-                num_leaves=31,
-                random_state=42
-            )
-        else:
-            logger.warning("Falling back to RandomForestRegressor")
-            self.model = RandomForestRegressor(n_estimators=100, random_state=42)
-            
-        self.model.fit(X_train_scaled, y_train)
+        # Train multiple models and choose the best one
+        models = {
+            'RandomForest': RandomForestRegressor(n_estimators=100, random_state=42),
+            'LinearRegression': LinearRegression()
+        }
         
-        # Evaluate model
-        y_pred = self.model.predict(X_test_scaled)
-        score = r2_score(y_test, y_pred)
-        logger.info(f"Model R² Score: {score:.3f}")
+        # Add LightGBM if available
+        if LGB_AVAILABLE:
+            models['LightGBM'] = lgb.LGBMRegressor(n_estimators=100, random_state=42)
+        
+        best_score = -1
+        best_model = None
+        
+        for name, model in models.items():
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+            score = r2_score(y_test, y_pred)
+            
+            logger.info(f"{name} R² Score: {score:.3f}")
+            
+            if score > best_score:
+                best_score = score
+                best_model = model
+        
+        self.model = best_model
+        logger.info(f"Selected {type(best_model).__name__} as best model with R² score: {best_score:.3f}")
     
     def predict_score(self, features: ResumeFeatures) -> ScoringResult:
         """
@@ -402,36 +406,30 @@ class ResumeScoringModel:
         if self.model is None:
             raise ValueError("Model not trained. Call train_model() first.")
         
-        # Convert features to array
-        feature_array = np.array([[
-            features.text_length, features.word_count, features.sentence_count,
-            features.paragraph_count, features.avg_sentence_length, features.readability_score,
-            features.skills_count, features.experience_years, features.education_level,
-            features.has_contact_info, features.has_summary, features.has_experience,
-            features.has_education, features.has_skills, features.bullet_points_count,
-            features.action_verbs_count, features.quantifiable_achievements,
-            features.keyword_density, features.formatting_score
-        ]])
+        # Create a dictionary for easy lookup
+        features_dict = features.__dict__
         
-        # Scale features
-        feature_array_scaled = self.scaler.transform(feature_array)
+        X = pd.DataFrame([features_dict], columns=self.feature_names)
         
-        # Make prediction
-        predicted_score = self.model.predict(feature_array_scaled)[0]
-        predicted_score = max(0, min(100, predicted_score))  # Clamp to 0-100
+        # Scale the features
+        X_scaled = self.scaler.transform(X)
         
-        # Calculate feature importance
+        # Predict score
+        predicted_score = self.model.predict(X_scaled)[0]
+        
+        # Clip score between 0 and 100
+        predicted_score = np.clip(predicted_score, 0, 100)
+        
+        # Get feature importance and scores
         feature_importance = self._get_feature_importance()
-        
-        # Calculate individual feature scores
         feature_scores = self._calculate_feature_scores(features)
+        
+        # Calculate confidence: higher for scores further from the average (50)
+        confidence = 0.5 + (abs(predicted_score - 50) / 100.0)
         
         # Generate breakdown and suggestions
         breakdown = self._generate_breakdown(features, feature_scores)
         suggestions = self._generate_suggestions(features, predicted_score)
-        
-        # Calculate confidence (simplified)
-        confidence = min(0.95, max(0.7, predicted_score / 100))
         
         return ScoringResult(
             overall_score=predicted_score,
@@ -443,20 +441,28 @@ class ResumeScoringModel:
         )
     
     def _get_feature_importance(self) -> Dict[str, float]:
-        """Get feature importance from the trained model"""
-        if hasattr(self.model, 'feature_importances_'):
-            importance = self.model.feature_importances_
-        else:
-            # For linear models, use absolute coefficients
-            importance = np.abs(self.model.coef_)
+        """Get feature importances from the trained model"""
+        importances = None
+        if self.model and hasattr(self.model, 'feature_importances_'):
+            importances = self.model.feature_importances_
+        elif self.model and hasattr(self.model, 'coef_'):
+            # For linear models, use the absolute value of coefficients
+            importances = np.abs(self.model.coef_)
+
+        if importances is not None:
+            # The output of coef_ can be a 2D array, flatten it.
+            importances = importances.flatten()
+            
+            # Normalize importances
+            total_importance = np.sum(importances)
+            if total_importance > 0:
+                normalized_importances = importances / total_importance
+                return dict(zip(self.feature_names, normalized_importances))
         
-        # Normalize importance
-        importance = importance / np.sum(importance)
-        
-        return dict(zip(self.feature_names, importance))
+        return {}
     
     def _calculate_feature_scores(self, features: ResumeFeatures) -> Dict[str, float]:
-        """Calculate individual scores for each feature"""
+        """Calculate scores for individual features"""
         scores = {}
         
         # Text quality scores

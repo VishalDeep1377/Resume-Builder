@@ -1,5 +1,0 @@
-build-essential
-cmake
-pkg-config
-libjpeg-dev
-zlib1g-dev 
