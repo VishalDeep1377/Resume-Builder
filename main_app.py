@@ -34,8 +34,7 @@ from ats_checker import ATSChecker
 from jd_matcher import JobDescriptionMatcher
 from scoring_model import ResumeScoringModel
 from utils import (
-    validate_pdf_file, format_score, get_score_color, create_summary_report,
-    create_detailed_breakdown, validate_job_description, truncate_text
+    format_score, get_score_color, create_summary_report
 )
 from chatbot_assistant import chat_with_resume_assistant
 
