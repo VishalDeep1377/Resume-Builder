@@ -57,12 +57,7 @@ class ResumeParser:
     
     def __init__(self):
         """Initialize the parser"""
-        try:
-            nltk.data.find('tokenizers/punkt')
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            nltk.download('punkt')
-            nltk.download('stopwords')
+        # NLTK data is now downloaded and managed in main_app.py
         
         # Define common section headers that appear in resumes
         # These help us identify different parts of the resume

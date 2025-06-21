@@ -26,6 +26,7 @@ import pandas as pd
 import openai
 import plotly.graph_objects as go
 import plotly.express as px
+import nltk
 
 # Import our custom modules
 from resume_parser import ResumeParser
@@ -37,6 +38,25 @@ from utils import (
     create_detailed_breakdown, validate_job_description, truncate_text
 )
 from chatbot_assistant import chat_with_resume_assistant
+
+# --- Initial Setup ---
+@st.cache_resource
+def perform_initial_setup():
+    """
+    Perform one-time setup tasks, like downloading NLTK data.
+    Using @st.cache_resource ensures this runs only once.
+    """
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        nltk.download('stopwords')
+
+# Run the initial setup
+perform_initial_setup()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
