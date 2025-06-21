@@ -30,13 +30,13 @@ from sklearn.metrics import mean_squared_error, r2_score
 import textstat
 import re
 
-# Try to import xgboost, but make it optional
+# Try to import lightgbm, but make it optional
 try:
-    import xgboost as xgb
-    XGBOOST_AVAILABLE = True
+    import lightgbm as lgb
+    LIGHTGBM_AVAILABLE = True
 except ImportError:
-    XGBOOST_AVAILABLE = False
-    logging.warning("XGBoost not available. Using alternative models.")
+    LIGHTGBM_AVAILABLE = False
+    logging.warning("LightGBM not available. Using alternative models.")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -359,39 +359,35 @@ class ResumeScoringModel:
         X = data[self.feature_names]
         y = data['quality_score']
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        logger.info(f"Training data shape: {X.shape}")
+        
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
         
         # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
         
-        # Train multiple models and choose the best one
-        models = {
-            'RandomForest': RandomForestRegressor(n_estimators=100, random_state=42),
-            'LinearRegression': LinearRegression()
-        }
-        
-        # Add XGBoost if available
-        if XGBOOST_AVAILABLE:
-            models['XGBoost'] = xgb.XGBRegressor(n_estimators=100, random_state=42)
-        
-        best_score = -1
-        best_model = None
-        
-        for name, model in models.items():
-            model.fit(X_train_scaled, y_train)
-            y_pred = model.predict(X_test_scaled)
-            score = r2_score(y_test, y_pred)
+        # Use LightGBM if available, otherwise fall back to RandomForest
+        if LIGHTGBM_AVAILABLE:
+            logger.info("Training with LightGBM model")
+            self.model = lgb.LGBMRegressor(
+                n_estimators=100,
+                learning_rate=0.1,
+                num_leaves=31,
+                random_state=42
+            )
+        else:
+            logger.warning("Falling back to RandomForestRegressor")
+            self.model = RandomForestRegressor(n_estimators=100, random_state=42)
             
-            logger.info(f"{name} R² Score: {score:.3f}")
-            
-            if score > best_score:
-                best_score = score
-                best_model = model
+        self.model.fit(X_train_scaled, y_train)
         
-        self.model = best_model
-        logger.info(f"Selected {type(best_model).__name__} as best model with R² score: {best_score:.3f}")
+        # Evaluate model
+        y_pred = self.model.predict(X_test_scaled)
+        score = r2_score(y_test, y_pred)
+        logger.info(f"Model R² Score: {score:.3f}")
     
     def predict_score(self, features: ResumeFeatures) -> ScoringResult:
         """

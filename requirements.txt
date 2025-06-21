@@ -12,7 +12,7 @@ nltk==3.8.1
 # Machine Learning - using compatible versions
 scikit-learn==1.5.1
 sentence-transformers==3.0.1
-xgboost==2.1.0
+lightgbm==4.4.0
 
 # Text processing
 textstat==0.7.3
