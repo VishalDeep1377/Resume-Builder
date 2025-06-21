@@ -116,6 +116,10 @@ class ResumeParser:
                 full_text = '\n'.join(text_content)
                 cleaned_text = self._clean_text(full_text)
                 
+                if not cleaned_text:
+                    logger.error(f"No text could be extracted from {pdf_path}. The PDF might be image-based.")
+                    raise ValueError("Could not extract text from PDF. The file may be an image or a scanned document.")
+                
                 logger.info(f"Successfully extracted {len(cleaned_text)} characters from PDF")
                 return cleaned_text
                 

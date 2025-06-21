@@ -377,9 +377,18 @@ To use AI rewriting, cover letter, or chatbot features:
         try:
             progress_bar = st.progress(0)
             status_text = st.empty()
+            
             status_text.text("Parsing resume...")
             progress_bar.progress(10)
-            parsed_resume = self.parser.parse_resume(pdf_path)
+            
+            try:
+                parsed_resume = self.parser.parse_resume(pdf_path)
+            except ValueError as e:
+                st.error(f"Failed to read PDF: {e}")
+                st.error("Please try a different, text-based PDF file. Scanned documents are not supported.")
+                logger.error(f"Parsing ValueError for {pdf_path}: {e}")
+                return
+
             st.session_state.parsed_resume = parsed_resume
             status_text.text("Analyzing ATS-friendliness...")
             progress_bar.progress(25)
