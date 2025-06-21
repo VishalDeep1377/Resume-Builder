@@ -20,4 +20,4 @@ EXPOSE 8501
 
 # Command to run the Streamlit application
 # Use environment variable for port to be compatible with cloud platforms
-CMD streamlit run main_app.py --server.port $PORT --server.enableCORS false --server.enableXsrfProtection false 
+CMD ["/bin/sh", "-c", "streamlit run main_app.py --server.port $PORT --server.enableCORS false --server.enableXsrfProtection false"] 
