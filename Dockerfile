@@ -12,8 +12,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends $(cat packages.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK data
-RUN python -m nltk.downloader punkt stopwords wordnet
+# Create a dedicated directory for NLTK data and set permissions
+RUN mkdir -p /app/nltk_data && chmod -R 755 /app/nltk_data
+
+# Download NLTK data into the dedicated directory
+RUN python -m nltk.downloader -d /app/nltk_data punkt stopwords wordnet
+
+# Copy the NLTK config to the root user's home directory
+COPY nltk.cfg /root/.nltk.cfg
+
+# Set the NLTK_DATA environment variable to ensure it's found
+ENV NLTK_DATA /app/nltk_data
 
 # Copy the rest of the application code
 COPY . .
