@@ -28,6 +28,13 @@ import plotly.graph_objects as go
 import plotly.express as px
 import nltk
 from dotenv import load_dotenv
+import traceback
+
+# Ensure NLTK 'punkt' tokenizer is available
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 # Import our custom modules
 from resume_parser import ResumeParser
@@ -402,7 +409,9 @@ To use AI rewriting, cover letter, or chatbot features:
             st.success("Resume analysis completed successfully!")
         except Exception as e:
             st.error(f"Error during analysis: {str(e)}")
+            st.error(traceback.format_exc())
             logger.error(f"Analysis error: {str(e)}")
+            logger.error(traceback.format_exc())
 
     def display_results(self):
         if not st.session_state.analysis_complete or not st.session_state.analysis_results:
