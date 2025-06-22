@@ -1,6 +1,6 @@
 streamlit
 pdfplumber
-nltk
+nltk==3.8.1
 scikit-learn
 lightgbm
 pandas
